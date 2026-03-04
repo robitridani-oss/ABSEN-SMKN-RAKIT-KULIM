@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>SMKN RAKIT KULIM - Absensi Digital</title>
+  
+  <!-- External Libraries -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+  <!-- FaceAPI (Vlad Mandic version) -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    /* =========================================
+       CORE VARIABLES & RESET
+       ========================================= */
+    *{margin:0;padding:0;box-sizing:border-box; outline:none;}
+    
+    :root{
+      --primary: #2563eb; /* Modern Royal Blue */
+      --primary-dark: #1e40af;
+      --secondary: #0ea5e9; /* Sky Blue */
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #06b6d4;
+      --purple: #8b5cf6;
+      --bg: #f1f5f9; 
+      --white: #ffffff;
+      --border: #e2e8f0;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --radius: 12px;
+    }
+
+    body{
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      overflow-x: hidden;
+    }
+
+    /* =========================================
+       LAYOUT STRUCTURE
+       ========================================= */
+    .app{display:flex;min-height:100vh; position: relative;}
+
+    /* Sidebar */
+    .sidebar{
+      width:260px;
+      background: var(--white);
+      border-right: 1px solid var(--border);
+      position:fixed;
+      top:0;left:0;bottom:0;
+      display:flex;flex-direction:column;
+      z-index: 50;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-header{
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      border-bottom: 1px solid var(--border);
+      background: #fff;
+    }
+
+    /* Sidebar Logo Container - DIPERBESAR */
+    .logo-icon{
+      width: 75px; /* Diperbesar dari 55px */
+      height: 75px; /* Diperbesar dari 55px */
+      background: #f8fafc; 
+      border-radius: 16px; /* Sedikit lebih melengkung */
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      overflow: hidden;
+      padding: 5px; /* Padding dikurangi agar gambar lebih besar */
+    }
+
+    .logo-text h1{
+      font-size: 15px; font-weight: 800;
+      color: var(--primary-dark);
+      line-height: 1.2;
+    }
+
+    .logo-text p{
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    /* Logo Image Styling */
+    .logo-img {
+      width: 150%;
+      height: 150%;
+      object-fit: contain; /* Menjaga rasio gambar */
+      display: block;
+    }
+
+    /* Navigation */
+    .nav{flex:1;padding: 20px 10px; overflow-y: auto;}
+    
+    .nav-item{
+      display: flex;align-items: center;gap: 12px;
+      padding: 12px 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;font-weight: 500;
+      margin-bottom: 4px;
+      border-radius: var(--radius);
+      transition: all 0.2s ease;
+    }
+
+    .nav-item:hover{background: #eff6ff; color: var(--primary); transform: translateX(4px);}
+    .nav-item.active{
+      background: var(--primary);
+      color: #fff;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .nav-item i{width:20px;height:20px;}
+
+    .sidebar-footer{padding: 20px; border-top: 1px solid var(--border); background: #f8fafc;}
+    
+    .user{display:flex;align-items:center;gap: 12px;}
+    .user-avatar{
+      width: 40px;height: 40px;
+      background: linear-gradient(135deg, var(--purple), var(--secondary));
+      border-radius: 50%;
+      display: flex;align-items: center;justify-content: center;
+      color: #fff;font-weight: 600;font-size: 13px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .user-info{font-size: 13px;font-weight: 600; color: var(--text-main);}
+    .user-info p{color: var(--text-muted);font-size: 11px;font-weight: 400;}
+
+    /* Main Content */
+    .main{flex:1;margin-left: 260px; display: flex; flex-direction: column;}
+
+    .topbar{
+      background: var(--white);
+      padding: 16px 30px;
+      display: flex;justify-content:space-between;align-items:center;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 40;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topbar h2{font-size: 18px;font-weight: 700; color: var(--text-main);}
+    
+    .topbar-right{display:flex;align-items:center;gap: 15px;}
+    
+    .search-box{
+      display:flex;align-items:center;gap: 10px;
+      background: var(--bg);padding: 8px 16px;
+      border-radius: 50px; 
+      border: 1px solid transparent;
+      transition: border 0.2s;
+    }
+    .search-box:focus-within{border-color: var(--primary); background: #fff;}
+    .search-box input{
+      border:none;background:transparent;outline:none;
+      font-size: 13px;width: 200px;font-family: 'Poppins';
+    }
+
+    .topbar-icon{
+      width: 40px;height: 40px;border-radius: 50%;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;color: var(--text-muted);
+      transition: background 0.2s;
+    }
+    .topbar-icon:hover{background: #f1f5f9; color: var(--primary);}
+
+    .content{padding: 30px; flex: 1;}
+
+    /* =========================================
+       COMPONENTS (Modernized)
+       ========================================= */
+    
+    /* Buttons */
+    .btn{
+      padding: 10px 20px;border-radius: 8px;font-size: 13px;font-weight: 600;
+      border:none;cursor:pointer;display:inline-flex;align-items:center;gap: 8px;
+      font-family: 'Poppins'; transition: all 0.2s ease;
+    }
+    .btn:active{transform: scale(0.98);}
+    
+    .btn-primary{background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);}
+    .btn-primary:hover{box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3); transform: translateY(-1px);}
+    
+    .btn-success{background: var(--success); color: #fff; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);}
+    .btn-success:hover{transform: translateY(-1px);}
+    
+    .btn-danger{background: var(--danger); color: #fff; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);}
+    
+    .btn-outline{
+      background: #fff;border: 1px solid var(--border);color: var(--text-main);
+    }
+    .btn-outline:hover{border-color: var(--primary); color: var(--primary); background: #eff6ff;}
+
+    /* Cards */
+    .card{
+      background: var(--white);border-radius: 16px;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: box-shadow 0.3s ease;
+    }
+    .card:hover{box-shadow: var(--shadow-md);}
+    .card-body{padding: 24px;}
+
+    /* Stats Grid */
+    .stats-grid{
+      display: grid;grid-template-columns: repeat(4, 1fr);gap: 24px;margin-bottom: 30px;
+    }
+    
+    .stat-card{
+      background: var(--white);padding: 24px;border-radius: 16px;
+      border: 1px solid var(--border);display: flex;justify-content:space-between;align-items:center;
+      box-shadow: var(--shadow-sm); position: relative; overflow: hidden;
+    }
+    .stat-card::before{
+      content:''; position: absolute; top:0; left:0; width: 4px; height: 100%;
+    }
+    .stat-card.blue::before { background: var(--primary); }
+    .stat-card.green::before { background: var(--success); }
+    .stat-card.orange::before { background: var(--warning); }
+    .stat-card.red::before { background: var(--danger); }
+
+    .stat-info h3{font-size: 12px;color: var(--text-muted);text-transform:uppercase;font-weight: 600;margin-bottom: 5px; letter-spacing: 0.5px;}
+    .stat-info .value{font-size: 28px;font-weight: 700; color: var(--text-main);}
+    .stat-info .trend{font-size: 11px;margin-top: 5px; font-weight: 500; display: flex; align-items: center; gap: 4px;}
+    .stat-info .trend.up{color: var(--success); background: #dcfce7; padding: 2px 8px; border-radius: 4px; width: fit-content;}
+    .stat-info .trend.down{color: var(--danger); background: #fee2e2; padding: 2px 8px; border-radius: 4px; width: fit-content;}
+
+    .stat-icon{width: 50px;height: 50px;border-radius: 12px;display:flex;align-items:center;justify-content:center;}
+    .stat-icon.blue{background:#eff6ff;color:var(--primary); box-shadow: 0 4px 10px rgba(37,99,235,0.15);}
+    .stat-icon.green{background:#dcfce7;color:var(--success); box-shadow: 0 4px 10px rgba(16,185,129,0.15);}
+    .stat-icon.orange{background:#fef3c7;color:var(--warning); box-shadow: 0 4px 10px rgba(245,158,11,0.15);}
+    .stat-icon.red{background:#fee2e2;color:var(--danger); box-shadow: 0 4px 10px rgba(239,68,68,0.15);}
+
+    /* Tables */
+    .table{width:100%;border-collapse:collapse;}
+    .table th{
+      padding: 16px;text-align:left;font-size: 12px;
+      text-transform:uppercase;color: var(--text-muted);
+      font-weight: 600;letter-spacing: 0.5px;
+      border-bottom: 2px solid var(--border); background: #f8fafc;
+    }
+    .table td{
+      padding: 16px;border-bottom: 1px solid var(--border);font-size: 13px; color: var(--text-main);
+    }
+    .table tr:hover{background: #f8fafc;}
+    
+    .avatar{width: 36px;height: 36px;border-radius: 50%;display:flex;align-items:center;justify-content:center;font-size: 12px;font-weight:600;color:#fff; flex-shrink: 0;}
+    .avatar.green{background:var(--success)} .avatar.blue{background:var(--primary)} .avatar.orange{background:var(--warning)} .avatar.purple{background:var(--purple)} .avatar.cyan{background:var(--info)}
+
+    .badge{display:inline-block;padding: 4px 12px;border-radius: 20px;font-size: 11px;font-weight: 600;}
+    .badge-success{background:#dcfce7;color:#16a34a}
+    .badge-warning{background:#fef3c7;color:#d97706}
+    .badge-danger{background:#fee2e2;color:#dc2626}
+    .badge-info{background:#cffafe;color:#0891b2}
+
+    /* Feed & Live Section */
+    .feed-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+    .feed-title{font-size: 20px;font-weight:700;display:flex;align-items:center;gap:12px;}
+    .live-badge{display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#dc2626;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;}
+    .live-dot{width:8px;height:8px;background:#dc2626;border-radius:50%;animation:pulse 1.5s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    .feed-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
+    .feed-card{
+      background: var(--white);border-radius: 16px;overflow:hidden;
+      border: 1px solid var(--border);transition:all .3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .feed-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);}
+    
+    .feed-img{position:relative; aspect-ratio: 1/1; overflow: hidden;}
+    .feed-photo{width:100%;height:100%;object-fit:cover; transition: transform 0.5s;}
+    .feed-card:hover .feed-photo{transform: scale(1.05);}
+    
+    .feed-badge{position:absolute;top:12px;left:12px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase; letter-spacing: 0.5px; backdrop-filter: blur(4px);}
+    .feed-badge.verified{background:rgba(16, 185, 129, 0.9);color:#fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+    .feed-badge.late{background:rgba(245, 158, 11, 0.9);color:#fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+
+    .feed-check{
+      position:absolute;bottom:12px;right:12px;width:28px;height:28px;
+      background:var(--success);border-radius:50%;color:#fff;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .feed-info{padding:16px; background: #fff; border-top: 1px solid #f1f5f9;}
+    .feed-name{font-size: 14px;font-weight: 600; margin-bottom: 4px; color: var(--text-main);}
+    .feed-class{font-size: 12px;color: var(--text-muted); margin-bottom: 8px;}
+    .feed-time{display:flex;align-items:center;gap:6px;font-size:12px;color: var(--text-muted); font-weight: 500;}
+    .feed-time.late{color:var(--warning)}
+
+    /* Filters */
+    .filters{display:flex;align-items:flex-end;gap:24px;margin-bottom:24px; flex-wrap: wrap;}
+    .filter-group{display:flex;flex-direction:column;gap:8px;}
+    .filter-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;font-weight:600;letter-spacing:.5px;}
+    .filter-tabs{display:flex;}
+    .filter-tab{
+      padding:8px 16px;font-size:13px;border:1px solid var(--border);
+      background:var(--white);cursor:pointer;font-family:'Poppins';font-weight:500;
+      color: var(--text-muted); transition: all 0.2s;
+    }
+    .filter-tab:first-child{border-radius:8px 0 0 8px}
+    .filter-tab:last-child{border-radius:0 8px 8px 0}
+    .filter-tab:not(:first-child){margin-left:-1px}
+    .filter-tab.active{background:var(--primary);color:#fff;border-color:var(--primary); z-index: 1;}
+
+    /* Forms & Inputs */
+    .form-group{margin-bottom:16px;}
+    .form-label{display:block;margin-bottom:8px;font-size:13px;font-weight:600; color: var(--text-main);}
+    .form-input, .form-select, textarea{
+      width:100%;padding:12px 16px;border:1px solid var(--border);
+      border-radius:8px;font-size:13px;font-family:'Poppins';
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: #f8fafc;
+    }
+    .form-input:focus, .form-select:focus, textarea:focus{
+      border-color: var(--primary); background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    /* Modal */
+    .modal-overlay{
+      position:fixed;top:0;left:0;right:0;bottom:0;
+      background:rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display:none;align-items:center;justify-content:center;
+      z-index:1000;
+    }
+    .modal-overlay.active{display:flex; animation: fadeIn 0.2s ease;}
+    .modal{
+      background:var(--white);border-radius:20px;width:100%;max-width:480px;
+      box-shadow: var(--shadow-lg); overflow: hidden;
+    }
+    .modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background: #f8fafc;}
+    .modal-title{font-size:18px;font-weight:700;color: var(--text-main);}
+    .modal-close{border:none;background:none;font-size:24px;cursor:pointer;color:var(--text-muted); transition: color 0.2s;}
+    .modal-close:hover{color: var(--danger);}
+    .modal-body{padding:24px;}
+    .modal-footer{padding:15px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:12px; background: #f8fafc;}
+
+    /* Toast */
+    .toast-container{position:fixed;top:24px;right:24px;z-index:9999; display: flex; flex-direction: column; gap: 10px;}
+    .toast{
+      background:var(--white);padding:16px 20px;border-radius:12px;
+      box-shadow:var(--shadow-lg); border-left:4px solid var(--success);
+      font-size:13px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.error{border-left-color:var(--danger);}
+    .toast i{width: 20px; height: 20px;}
+
+    /* Student Page Specifics */
+    .student-page{
+      min-height:100vh;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      display:flex;align-items:center;justify-content:center;
+      padding:20px;
+    }
+    .att-box{
+      background:var(--white);border-radius:24px;width:100%;max-width:420px;
+      overflow:hidden;box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      animation: slideUp 0.4s ease-out;
+    }
+    .att-header{
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color:#fff;padding:40px 30px;text-align:center; position: relative;
+    }
+    /* Decorative circles */
+    .att-header::before, .att-header::after {
+      content: ''; position: absolute; width: 100px; height: 100px;
+      background: rgba(255,255,255,0.1); border-radius: 50%;
+    }
+    .att-header::before{top: -30px; left: -30px;}
+    .att-header::after{bottom: -30px; right: -30px;}
+
+    /* Logo in Student Header - DIPERBESAR */
+    .att-header-logo {
+      width: 110px; height: 110px; /* Diperbesar dari 85px */
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(5px);
+      border-radius: 50%;
+      margin: 0 auto 15px;
+      display: flex; align-items: center; justify-content: center;
+      border: 3px solid rgba(255,255,255,0.5);
+      padding: 8px; /* Padding dikurangi */
+    }
+    .att-header-logo img {
+      width: 100%; height: 100%; object-fit: contain;
+    }
+
+    .att-header h1{font-size:22px;font-weight:700; margin-bottom: 5px;}
+    .att-header p{opacity:0.9;font-size:13px;}
+
+    .att-body{padding:30px 25px;}
+    
+    .opt-btn{
+      display:flex;align-items:center;gap:16px;padding:16px;
+      border:1px solid var(--border);border-radius:12px;
+      background:var(--white);cursor:pointer;width:100%;margin-bottom:12px;
+      text-align:left;transition:all .2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .opt-btn:hover{border-color:var(--primary);background:#eff6ff;transform:translateY(-2px); box-shadow: 0 4px 6px rgba(37,99,235,0.1);}
+    
+    .opt-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center; flex-shrink: 0;}
+    .opt-icon.blue{background:#eff6ff;color:var(--primary)}
+    .opt-icon.green{background:#dcfce7;color:var(--success)}
+    .opt-icon.purple{background:#ede9fe;color:var(--purple)}
+    
+    .opt-text h3{font-size:15px;font-weight:600;margin-bottom:2px;color: var(--text-main);}
+    .opt-text p{font-size:12px;color:var(--text-muted)}
+
+    .camera-box{
+      width:100%;border-radius:16px;overflow:hidden;background:#000;
+      margin-bottom:20px; position: relative;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      border: 2px solid var(--border);
+    }
+    .camera-video{width:100%;height:280px;object-fit:cover; display: block;}
+    
+    .face-status{
+      padding:12px;border-radius:10px;text-align:center;font-size:13px;margin-bottom:16px;font-weight:500;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .face-status.loading{background:#fffbeb;color:#b45309; border: 1px solid #fcd34d;}
+    .face-status.success{background:#ecfdf5;color:#047857; border: 1px solid #6ee7b7;}
+    .face-status.error{background:#fef2f2;color:#b91c1c; border: 1px solid #fca5a5;}
+
+    .loc-info{background:#f8fafc;padding:12px 16px;border-radius:10px;font-size:12px;margin-bottom:16px;display:flex;align-items:center;gap:10px; color: var(--text-muted); border: 1px solid var(--border);}
+
+    /* Success Screen */
+    .success-screen{text-align:center;padding:10px;}
+    .success-icon{
+      width:80px;height:80px;border-radius:50%;color:#fff;
+      display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
+      font-size:40px; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Landing Page */
+    #landing-page {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at top left, #2563eb, #0f172a);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 2000; color: white;
+      overflow: hidden;
+    }
+    #landing-page::before {
+      content: ''; position: absolute; width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(37,99,235,0.4) 0%, rgba(0,0,0,0) 70%);
+      top: -100px; left: -100px; z-index: -1;
+    }
+
+    .landing-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 50px 40px;
+      border-radius: 24px;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      max-width: 420px;
+      width: 90%;
+      animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    /* Landing Page Logo - DIPERBESAR */
+    .school-logo-area {
+      width: 140px; height: 140px; /* Diperbesar dari 110px */
+      background: #fff;
+      border-radius: 24px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 25px;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.15);
+      border: 2px solid #e2e8f0;
+      overflow: hidden;
+      padding: 10px; /* Padding dikurangi */
+    }
+
+    .landing-card h1 { color: #0f172a; margin-bottom: 5px; font-size: 26px; font-weight: 800; }
+    .landing-card p { color: #64748b; margin-bottom: 35px; font-size: 15px; }
+    
+    .role-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 16px;
+      margin-bottom: 15px; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; gap: 10px;
+    }
+    .role-btn:active { transform: scale(0.98); }
+    .role-admin { background: #0f172a; color: white; box-shadow: 0 4px 6px rgba(15, 23, 42, 0.2); }
+    .role-admin:hover { background: #1e293b; transform: translateY(-2px); box-shadow: 0 10px 15px rgba(15, 23, 42, 0.2); }
+    
+    .role-student { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2); }
+    .role-student:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 10px 15px rgba(37, 99, 235, 0.3); }
+
+    /* Rekap Table */
+    .rekap-table{font-size:11px;border-collapse: separate; border-spacing: 0;}
+    .rekap-table th,.rekap-table td{padding:8px 4px;text-align:center;min-width:24px; border-bottom: 1px solid var(--border);}
+    .rekap-table th:first-child { text-align: left; padding-left: 10px; position: sticky; left: 0; background: #f8fafc; z-index: 10; }
+    .rekap-table td:first-child { text-align: left; padding-left: 10px; background: #fff; position: sticky; left: 0; z-index: 5; border-right: 1px solid var(--border); }
+    
+    .rekap-table .day-h{background:#f0fdf4;color:#15803d;font-weight:700;}
+    .rekap-table .day-t{background:#fffbeb;color:#b45309;font-weight:700;}
+    .rekap-table .day-s{background:#faf5ff;color:#7e22ce;font-weight:700;}
+    .rekap-table .day-i{background:#ecfeff;color:#0e7490;font-weight:700;}
+    .rekap-table .day-a{background:#fef2f2;color:#b91c1c;font-weight:700;}
+
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* Responsive */
+    @media(max-width: 1024px) {
+      .stats-grid, .feed-grid{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(max-width: 768px){
+      .sidebar{transform:translateX(-100%); position: fixed;}
+      .sidebar.mobile-active{transform:translateX(0);}
+      .main{margin-left:0}
+      .stats-grid, .feed-grid{grid-template-columns:1fr}
+      .topbar h2{font-size: 16px;}
+      .search-box{display:none;} 
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Landing Page -->
+  <div id="landing-page">
+    <div class="landing-card">
+      <div class="school-logo-area">
+        <!-- LOGO LANDING PAGE -->
+        <img src="https://z-cdn-media.chatglm.cn/files/d9afced5-f4fa-452c-b706-548e81148ce2.jpeg?auth_key=1872622915-02af7cf55125476d96218b3c22d8422a-0-fdd766eaf0d68485ab936561f1083574" 
+             class="logo-img" 
+             alt="Logo SMKN Rakit Kulim"
+             onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/2997/2997322.png';">
+      </div>
+      <h1>SMKN RAKIT KULIM</h1>
+      <p>Sistem Absensi Digital Terintegrasi</p>
+      
+      <button class="role-btn role-admin" onclick="startApp('admin')">
+        <i data-lucide="shield-check" style="width: 20px;"></i>
+        Portal Admin / Guru
+      </button>
+      <button class="role-btn role-student" onclick="startApp('student')">
+        <i data-lucide="user-check" style="width: 20px;"></i>
+        Absensi Siswa
+      </button>
+      
+      <p style="margin-top: 20px; margin-bottom: 0; font-size: 11px; opacity: 0.6;">
+        &copy; 2026 SMKN Rakit Kulim. All rights reserved.
+        <p>Created By &copy;ROBI TRIDANI</p>
+      </p>
+    </div>
+  </div>
+
+  <!-- App Container (Hidden initially) -->
+  <div id="app-container" style="display:none;"></div>
+
+  <!-- Modal & Toasts -->
+  <div class="modal-overlay" id="modal"></div>
+  <div class="toast-container" id="toasts"></div>
+
+  <script>
+    /* =========================================
+       1. LOGO CONFIGURATION
+       ========================================= */
+    const MAIN_LOGO_URL = "https://z-cdn-media.chatglm.cn/files/d9afced5-f4fa-452c-b706-548e81148ce2.jpeg?auth_key=1872622915-02af7cf55125476d96218b3c22d8422a-0-fdd766eaf0d68485ab936561f1083574";
+    const FALLBACK_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/2997/2997322.png"; // Ikon Gedung Sekolah Umum
+
+    /* =========================================
+       2. MOCK BACKEND SERVER (LocalStorage)
+       ========================================= */
+    const MockServer = {
+      db: {
+        students: [],
+        teachers: [],
+        classes: [],
+        attendance: [],
+        settings: { jamTerlambat: "07:15", faceMatchThreshold: "0.5" }
+      },
+      
+      init() {
+        const saved = localStorage.getItem('absensi_db_smkn');
+        if (saved) {
+          this.db = JSON.parse(saved);
+        } else {
+          this.seedData();
+        }
+      },
+
+      save() {
+        localStorage.setItem('absensi_db_smkn', JSON.stringify(this.db));
+      },
+
+      seedData() {
+        this.db.students = [
+          {id:"STD1", barcode:"12345", nama:"Ahmad Rizky", kelas:"XII-TKJ-1", jk:"L", foto:"", status:"Aktif", faceDescriptor:null, email:"ahmad@smknrakitkulim.sch.id"},
+          {id:"STD2", barcode:"12346", nama:"Siti Nurhaliza", kelas:"XI-IPA-2", jk:"P", foto:"", status:"Aktif", faceDescriptor:null, email:"siti@smknrakitkulim.sch.id"},
+          {id:"STD3", barcode:"12347", nama:"Budi Darma", kelas:"X-TBSM-1", jk:"L", foto:"", status:"Aktif", faceDescriptor:null, email:"budi@smknrakitkulim.sch.id"}
+        ];
+        this.db.teachers = [
+          {id:"TCH1", nip:"198501", nama:"Drs. H. Suherman, M.Pd", jabatan:"Kepala Sekolah", jk:"L", foto:"", status:"Aktif", faceDescriptor:null, email:"kepsek@smknrakitkulim.sch.id"}
+        ];
+        this.db.classes = [
+          {nama:"XII-TKJ-1", wali:"Bpk. Indra", email:"indra@smknrakitkulim.sch.id"},
+          {nama:"XI-IPA-2", wali:"Ibu Ratna", email:"ratna@smknrakitkulim.sch.id"}
+        ];
+        this.save();
+      },
+
+      getSheetData(type) {
+        if(type === 'Siswa') return this.db.students;
+        if(type === 'Guru') return this.db.teachers;
+        if(type === 'Kelas') return this.db.classes;
+        return [];
+      },
+
+      getStats(type) {
+        const isGuru = (type.toLowerCase() === "guru");
+        const people = isGuru ? this.db.teachers : this.db.students;
+        const total = people.filter(p => p.status === "Aktif").length;
+        
+        const today = new Date().toISOString().split('T')[0];
+        const todayLogs = this.db.attendance.filter(a => a.date === today && (isGuru ? a.type === 'Guru' : a.type !== 'Guru'));
+
+        let h=0, t=0, s=0, i=0;
+        todayLogs.forEach(log => {
+          if(log.status === 'Hadir') h++;
+          if(log.status === 'Terlambat') t++;
+          if(log.status === 'Sakit') s++;
+          if(log.status === 'Izin') i++;
+        });
+
+        return Promise.resolve({ 
+          success: true, 
+          stats: { totalHadir: h, totalTerlambat: t, totalSakit: s, totalIzin: i, belumAbsen: total - (h+t+s+i), totalSiswa: total }
+        });
+      },
+
+      getAttendanceToday(dateStr) {
+        const targetDate = dateStr || new Date().toISOString().split('T')[0];
+        const logs = this.db.attendance.filter(a => a.date === targetDate);
+        return Promise.resolve({ success: true, attendance: logs, date: targetDate });
+      },
+
+      getStudentList() { return Promise.resolve({ success: true, students: this.db.students }); },
+      getTeacherList() { return Promise.resolve({ success: true, teachers: this.db.teachers }); },
+      getClassList() { return Promise.resolve({ success: true, classes: this.db.classes }); },
+
+      addClass(data) { this.db.classes.push(data); this.save(); return Promise.resolve({ success: true }); },
+      deleteClass(nama) { this.db.classes = this.db.classes.filter(c => c.nama !== nama); this.save(); return Promise.resolve({ success: true }); },
+
+      getPersonByBarcode(bc) {
+        let s = this.db.students.find(x => x.barcode === bc);
+        if (s) return Promise.resolve({ success: true, type: 'siswa', student: s });
+        let t = this.db.teachers.find(x => x.nip === bc);
+        if (t) return Promise.resolve({ success: true, type: 'guru', student: t });
+        return Promise.resolve({ success: false });
+      },
+
+      addStudent(d) {
+        const id = "STD" + Date.now();
+        const newS = { id, barcode: d.barcode, nama: d.nama, kelas: d.kelas, jk:"", foto:"", status:"Aktif", faceDescriptor: null, email: d.email || "" };
+        this.db.students.push(newS); this.save();
+        return Promise.resolve({ success: true, id });
+      },
+
+      addTeacher(d) {
+        const id = "TCH" + Date.now();
+        const newT = { id, nip: d.nip, nama: d.nama, jabatan: d.jabatan, jk:"", foto:"", status:"Aktif", faceDescriptor: null, email: d.email || "" };
+        this.db.teachers.push(newT); this.save();
+        return Promise.resolve({ success: true });
+      },
+
+      deleteStudent(id) { this.db.students = this.db.students.filter(s => s.id !== id); this.save(); return Promise.resolve({ success: true }); },
+      deleteTeacher(id) { this.db.teachers = this.db.teachers.filter(t => t.id !== id); this.save(); return Promise.resolve({ success: true }); },
+
+      registerFace(d) {
+        let s = this.db.students.find(x => x.id === d.studentId);
+        if (s) { s.foto = d.fotoURL; s.faceDescriptor = d.faceDescriptor; this.save(); return Promise.resolve({ success: true }); }
+        let t = this.db.teachers.find(x => x.id === d.studentId);
+        if (t) { t.foto = d.fotoURL; t.faceDescriptor = d.faceDescriptor; this.save(); return Promise.resolve({ success: true }); }
+        return Promise.resolve({ success: false });
+      },
+
+      recordAttendance(d) {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const time = now.toTimeString().split(' ')[0];
+        const jamTerlambat = this.db.settings.jamTerlambat || "07:15";
+        const isLate = time > jamTerlambat + ":00";
+        const type = d.studentId.startsWith("TCH") ? "Guru" : "Siswa";
+
+        const newLog = {
+          id: "ATT" + Date.now(),
+          studentId: d.studentId, nama: d.nama, kelas: d.kelas,
+          date: today, time: time, status: isLate ? "Terlambat" : "Hadir",
+          fotoAbsen: d.fotoAbsen, faceMatch: d.faceMatch,
+          lat: d.latitude, lng: d.longitude, alamat: d.alamat,
+          type: type
+        };
+        this.db.attendance.push(newLog); this.save();
+        return Promise.resolve({ success: true, status: newLog.status, time: time });
+      },
+
+      submitSickLeave(d) {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const time = now.toTimeString().split(' ')[0];
+
+        const newLog = {
+          id: "ATT" + Date.now(), studentId: d.studentId, nama: d.nama, kelas: d.kelas,
+          date: today, time: time, status: d.status,
+          fotoAbsen: "", faceMatch: 0,
+          lat: "", lng: "", alamat: d.keterangan,
+          type: "Siswa"
+        };
+
+        this.db.attendance.push(newLog); this.save();
+        return Promise.resolve({ success: true, status: d.status, time: time });
+      },
+
+      getMonthlyRecap(m, y, type) {
+        const isGuru = (type.toLowerCase() === "guru");
+        const people = isGuru ? this.db.teachers : this.db.students;
+        const days = new Date(y, m, 0).getDate();
+        const logs = this.db.attendance.filter(a => {
+           const d = new Date(a.date);
+           return (d.getMonth() + 1) == m && d.getFullYear() == y && (isGuru ? a.type === 'Guru' : a.type !== 'Guru');
+        });
+
+        let result = people.map(p => {
+           let daysMap = {}; let totals = {H:0, T:0, S:0, I:0, A:0};
+           for(let i=1; i<=days; i++) {
+              const log = logs.find(l => l.studentId === p.id && new Date(l.date).getDate() === i);
+              if(log) {
+                let code = log.status === 'Hadir' ? 'H' : log.status === 'Terlambat' ? 'T' : log.status === 'Sakit' ? 'S' : log.status === 'Izin' ? 'I' : 'A';
+                daysMap[i] = code;
+                if(totals[code] !== undefined) totals[code]++;
+              } else {
+                daysMap[i] = '-';
+              }
+           }
+           return { id: p.id, nama: p.nama, kelas: isGuru ? p.jabatan : p.kelas, days: daysMap, totals: totals };
+        });
+
+        return Promise.resolve({ success: true, daysInMonth: days, students: result, type: type });
+      },
+
+      updateSettings(data) {
+        if(data.jamTerlambat) this.db.settings.jamTerlambat = data.jamTerlambat;
+        if(data.faceMatchThreshold) this.db.settings.faceMatchThreshold = data.faceMatchThreshold;
+        this.save();
+        return Promise.resolve({ success: true });
+      },
+
+      sendDailyReportToWaliKelas(dateStr) { return Promise.resolve({ success: true, sent: 1, failed: 0, log: ["Email terkirim (Mock)"] }); }
+    };
+
+    /* =========================================
+       3. UI RENDERERS
+       ========================================= */
+    function getAdminHTML() {
+      return `
+      <div class='app'>
+        <aside class='sidebar'>
+          <div class='sidebar-header'>
+            <!-- SIDEBAR LOGO -->
+            <div class='logo-icon'>
+              <img src='${MAIN_LOGO_URL}' class='logo-img' onerror="this.onerror=null; this.src='${FALLBACK_LOGO_URL}'" alt='Logo Sekolah'>
+            </div>
+            <div class='logo-text'>
+              <h1>SMKN RAKIT KULIM</h1>
+              <p>Sistem Absensi Digital</p>
+            </div>
+          </div>
+          <nav class='nav'>
+            <div class='nav-item active' data-page='dashboard' onclick='showPage("dashboard")'><i data-lucide='layout-dashboard'></i><span>Dashboard</span></div>
+            <div class='nav-item' data-page='laporan' onclick='showPage("laporan")'><i data-lucide='clipboard-list'></i><span>Laporan Harian</span></div>
+            <div class='nav-item' data-page='rekap' onclick='showPage("rekap")'><i data-lucide='calendar-days'></i><span>Rekap Bulanan</span></div>
+            <div class='nav-item' data-page='siswa' onclick='showPage("siswa")'><i data-lucide='users'></i><span>Data Sekolah</span></div>
+            <div class='nav-item' data-page='pengaturan' onclick='showPage("pengaturan")'><i data-lucide='settings'></i><span>Pengaturan</span></div>
+          </nav>
+          <div class='sidebar-footer'>
+            <div class='user'>
+              <div class='user-avatar'>AD</div>
+              <div class='user-info'>Admin Sekolah<p>Operator</p></div>
+            </div>
+          </div>
+        </aside>
+        <main class='main'>
+          <div class='topbar'>
+            <h2 id='page-title'>Dashboard</h2>
+            <div class='topbar-right'>
+              <div class='search-box'><i data-lucide='search' style='width:16px;color:var(--text-muted)'></i><input type='text' placeholder='Cari siswa atau guru...'></div>
+              <div class='topbar-icon'><i data-lucide='bell' style='width:20px'></i></div>
+              <div class='topbar-icon' onclick="location.reload()" title="Keluar"><i data-lucide='log-out' style='width:20px'></i></div>
+            </div>
+          </div>
+          <div class='content' id='main-content'></div>
+        </main>
+      </div>`;
+    }
+
+    function getStudentHTML() {
+      return `<div class='student-page'><div class='att-box'><div class='att-header'>
+        <!-- STUDENT PAGE LOGO -->
+        <div class='att-header-logo'>
+            <img src='${MAIN_LOGO_URL}' class='logo-img' onerror="this.onerror=null; this.src='${FALLBACK_LOGO_URL}'" alt='Logo Sekolah'>
+        </div>
+        <h1>SMKN RAKIT KULIM</h1><p>Absensi Digital</p></div><div class='att-body' id='student-content'></div></div></div>`;
+    }
+
+    /* =========================================
+       4. CLIENT LOGIC
+       ========================================= */
+    var currentPage = 'dashboard';
+    var activeType = 'siswa';
+    var currentFilterDate = '';
+    var students = [];
+    var attendance = [];
+    var stats = {};
+    var rekapData = null;
+    var filterKelas = 'Semua';
+    var colors = ['blue','green','orange','purple','cyan'];
+
+    document.addEventListener('DOMContentLoaded', function(){
+      MockServer.init();
+      lucide.createIcons();
+    });
+
+    function startApp(role) {
+      document.getElementById('landing-page').style.display = 'none';
+      const container = document.getElementById('app-container');
+      container.style.display = 'block';
+      if (role === 'admin') {
+        container.innerHTML = getAdminHTML();
+        lucide.createIcons();
+        loadData();
+      } else {
+        container.innerHTML = getStudentHTML();
+        lucide.createIcons();
+        showOptions();
+      }
+    }
+
+    // --- ADMIN LOGIC ---
+
+    function loadData(dt) {
+      if(dt) currentFilterDate = dt;
+      MockServer.getStats(activeType).then(function(r){
+        if(r.success) stats = r.stats;
+        renderPage();
+      });
+      MockServer.getAttendanceToday(currentFilterDate).then(function(r){
+        if(r.success){
+          attendance = r.attendance;
+          if(r.date) currentFilterDate = r.date;
+          renderPage();
+        }
+      });
+      
+      if(activeType === 'guru'){
+        MockServer.getTeacherList().then(function(r){ if(r.success){ students = r.teachers; renderPage(); }});
+      } else if(activeType === 'kelas'){
+        MockServer.getClassList().then(function(r){ if(r.success){ students = r.classes; renderPage(); }});
+      } else {
+        MockServer.getStudentList().then(function(r){ if(r.success){ students = r.students; renderPage(); }});
+      }
+    }
+
+    function switchType(t) { activeType = t; filterKelas = 'Semua'; loadData(); }
+    function changeDate(d) { currentFilterDate = d; loadData(d); }
+    function getColor(i) { return colors[i % colors.length]; }
+
+    function showPage(p) {
+      currentPage = p;
+      document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+      const nav = document.querySelector('[data-page="'+p+'"]');
+      if(nav) nav.classList.add('active');
+      var t = {'dashboard':'Dashboard','laporan':'Laporan Kehadiran','rekap':'Rekapitulasi Bulanan','siswa':'Populasi Sekolah','pengaturan':'Pengaturan Sistem'};
+      document.getElementById('page-title').textContent = t[p];
+      renderPage();
+    }
+
+    function renderPage() {
+      if(currentPage==='dashboard') renderDashboard();
+      else if(currentPage==='laporan') renderLaporan();
+      else if(currentPage==='rekap') renderRekap();
+      else if(currentPage==='siswa') renderSiswa();
+      else if(currentPage==='pengaturan') renderPengaturan();
+    }
+
+    function renderDashboard() {
+      var c = document.getElementById('main-content');
+      var btnS = activeType=='siswa' ? 'btn-primary' : 'btn-outline';
+      var btnG = activeType=='guru' ? 'btn-primary' : 'btn-outline';
+      var targetType = activeType=='guru' ? 'Guru' : 'Siswa';
+      var feedData = attendance.filter(function(a){ return activeType=='guru'?a.type==='Guru':(!a.type||a.type==='Siswa'); });
+      
+      var verified = 0; var total = feedData.length;
+      for(var i=0;i<feedData.length;i++){ if(feedData[i].faceMatch>0.5) verified++; }
+      var pct = total>0 ? ((verified/total)*100).toFixed(1) : '0';
+      
+      var feed = '';
+      if(feedData.length>0){
+        for(var j=0;j<feedData.length;j++){
+          var a = feedData[j];
+          var badge = a.faceMatch>0.5 ? (a.status==='Terlambat'?'<span class="feed-badge late">TERLAMBAT</span>':'<span class="feed-badge verified">VERIFIED</span>') : '<span class="feed-badge" style="background:#94a3b8;color:white">NO FACE</span>';
+          var photoSrc = a.fotoAbsen ? a.fotoAbsen : '';
+          var photoHtml = photoSrc ? '<img class="feed-photo" src="'+photoSrc+'">' : '<div class="feed-photo" style="display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:var(--primary);background:#f1f5f9">'+getInit(a.nama)+'</div>';
+          var timeClass = a.status==='Terlambat' ? ' late' : '';
+          var subText = a.kelas;
+          feed+='<div class="feed-card"><div class="feed-img">'+photoHtml+badge+'<div class="feed-check"><i data-lucide="check" style="width:16px;height:16px"></i></div></div><div class="feed-info"><div class="feed-name">'+a.nama+'</div><div class="feed-class">'+subText+'</div><div class="feed-time'+timeClass+'"><i data-lucide="clock" style="width:12px"></i> '+a.time+' WIB</div></div></div>';
+        }
+      } else {
+        feed='<div style="text-align:center;padding:60px 20px;color:var(--text-muted);grid-column:1/-1;background:white;border-radius:16px;border:1px dashed var(--border)"><i data-lucide="user-x" style="width:64px;height:64px;margin-bottom:20px;opacity:.3"></i><h3 style="margin-bottom:8px">Belum Ada Absensi</h3><p style="font-size:13px">Data absensi '+targetType+' hari ini belum tersedia.</p></div>';
+      }
+
+      c.innerHTML = `
+      <div class="page-header" style="margin-bottom:30px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+          <div>
+            <h1 style="font-size:24px; font-weight:700; color:var(--text-main);">Dashboard ${targetType}</h1>
+            <p style="color:var(--text-muted); font-size:14px; margin-top:4px;">Pantau kehadiran secara real-time di SMKN Rakit Kulim.</p>
+          </div>
+          <div class="header-actions" style="margin-top:0">
+            <button class="btn ${btnS}" onclick="switchType('siswa')">Siswa</button>
+            <button class="btn ${btnG}" onclick="switchType('guru')">Guru</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-info"><h3>Hadir Hari Ini</h3><div class="value">${stats.totalHadir||0}</div><div class="trend up"><i data-lucide="trending-up" style="width:14px"></i> +5% vs kemarin</div></div><div class="stat-icon blue"><i data-lucide="users"></i></div></div>
+        <div class="stat-card orange"><div class="stat-info"><h3>Terlambat</h3><div class="value">${stats.totalTerlambat||0}</div><div class="trend down"><i data-lucide="trending-down" style="width:14px"></i> -2% Membaik</div></div><div class="stat-icon orange"><i data-lucide="clock-warning"></i></div></div>
+        <div class="stat-card red"><div class="stat-info"><h3>Belum Absen</h3><div class="value">${stats.belumAbsen||0}</div><div class="trend down">Perlu tindakan</div></div><div class="stat-icon red"><i data-lucide="user-x"></i></div></div>
+        <div class="stat-card green"><div class="stat-info"><h3>Akurasi AI</h3><div class="value">${pct}%</div><div class="trend up">Face Recognition</div></div><div class="stat-icon green"><i data-lucide="scan-face"></i></div></div>
+      </div>
+
+      <div class="feed-header">
+        <div class="feed-title">Live Feed <span class="live-badge"><span class="live-dot"></span> LIVE</span></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline" onclick="loadData()"><i data-lucide="refresh-ccw" style="width:14px"></i> Refresh</button>
+          <button class="btn btn-primary" onclick="exportExcel()"><i data-lucide="download" style="width:14px"></i> Export Excel</button>
+        </div>
+      </div>
+
+      <div class="feed-grid">${feed}</div>
+      <div class="pagination" style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border); justify-content:center;">
+         <div class="pagination-info" style="color:var(--text-muted)">Menampilkan ${feedData.length} data terbaru</div>
+      </div>`;
+      lucide.createIcons();
+    }
+
+    function renderLaporan(){
+      var c = document.getElementById('main-content');
+      var btnS=activeType=='siswa'?'btn-primary':'btn-outline';
+      var btnG=activeType=='guru'?'btn-primary':'btn-outline';
+      c.innerHTML=`
+      <div class="page-header" style="margin-bottom:24px;">
+        <h1 style="font-size:24px;font-weight:700;">Laporan Kehadiran ${(activeType=='guru'?'Guru':'Siswa')}</h1>
+        <p style="color:var(--text-muted);font-size:14px;">Kelola data kehadiran harian.</p>
+        <div class="header-actions" style="margin-top:20px; display:flex; gap:10px;">
+          <button class="btn ${btnS}" onclick="switchType('siswa')">Siswa</button>
+          <button class="btn ${btnG}" onclick="switchType('guru')">Guru</button>
+          <button class="btn btn-danger" onclick="exportPDF()"><i data-lucide="file-text" style="width:16px"></i> PDF</button>
+          <button class="btn btn-success" onclick="exportExcel()"><i data-lucide="file-spreadsheet" style="width:16px"></i> Excel</button>
+          <button class="btn btn-primary" onclick="propagateEmail()"><i data-lucide="mail" style="width:16px"></i> Email</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="filters">
+            <div class="filter-group"><div class="filter-label">Filter Jenis</div><div class="filter-tabs" id="filter-tabs"></div></div>
+            <div class="filter-group"><div class="filter-label">Tanggal</div><input type="date" class="form-input" value="${currentFilterDate||''}" onchange="changeDate(this.value)" style="width:auto;"></div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="table"><thead><tr><th>Nama</th><th>${activeType=='guru'?'Jabatan':'Kelas'}</th><th>Tanggal</th><th>Jam</th><th>Status</th><th>Verifikasi</th><th>Aksi</th></tr></thead><tbody id="lap-table"></tbody></table>
+          </div>
+        </div>
+      </div>`;
+      renderFilters();
+      renderLapTable();
+      lucide.createIcons();
+    }
+
+    function renderFilters(){
+      var t=document.getElementById('filter-tabs');
+      if(activeType=='siswa'){
+        t.innerHTML='<button class="filter-tab '+(filterKelas=='Semua'?'active':'')+'" onclick="setFilter(this,\'Semua\')">Semua</button><button class="filter-tab '+(filterKelas=='X'?'active':'')+'" onclick="setFilter(this,\'X\')">Kelas X</button><button class="filter-tab '+(filterKelas=='XI'?'active':'')+'" onclick="setFilter(this,\'XI\')">Kelas XI</button><button class="filter-tab '+(filterKelas=='XII'?'active':'')+'" onclick="setFilter(this,\'XII\')">Kelas XII</button>';
+      }else{
+        var roles=['Semua']; if(students&&students.length>0){ var u={}; for(var i=0;i<students.length;i++){ if(students[i].jabatan)u[students[i].jabatan]=1;} for(var k in u)roles.push(k);} var h=''; for(var j=0;j<roles.length;j++)h+='<button class="filter-tab '+(filterKelas==roles[j]?'active':'')+'" onclick="setFilter(this,\''+roles[j]+'\')">'+roles[j]+'</button>'; t.innerHTML=h;
+      }
+    }
+    function setFilter(el,f){ filterKelas=f; renderFilters(); renderLapTable(); }
+    function renderLapTable(){
+      var tb=document.getElementById('lap-table'); if(!tb)return;
+      var targetType=(activeType=='guru'?'Guru':'Siswa');
+      var data=attendance.filter(function(a){ var isType=(a.type===targetType)||(activeType=='siswa'&&!a.type); return isType&&(filterKelas==='Semua'||a.kelas.indexOf(filterKelas)>-1);});
+      if(data.length===0){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Tidak ada data</td></tr>'; return;}
+      var h=''; for(var i=0;i<data.length;i++){ var a=data[i]; var bc=a.status==='Hadir'?'success':a.status==='Terlambat'?'warning':a.status==='Izin'?'info':'danger'; var tc=a.status==='Terlambat'?' style="color:var(--warning);font-weight:600"':''; var v=a.faceMatch>0.5?'<button class="action-btn" style="color:var(--success)"><i data-lucide="check-circle-2" style="width:20px"></i></button>':'<button class="action-btn" style="color:var(--text-muted)"><i data-lucide="alert-circle" style="width:20px"></i></button>'; var thumb=a.fotoAbsen?'<img src="'+a.fotoAbsen+'" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.1)">':'<div class="avatar '+getColor(i)+'">'+getInit(a.nama)+'</div>'; h+='<tr><td><div class="student-cell">'+thumb+'<span style="font-weight:600;margin-left:10px">'+a.nama+'</span></div></td><td><span style="color:var(--text-muted);font-size:12px">'+a.kelas+'</span></td><td>'+formatDate(a.date)+'</td><td'+tc+'>'+(a.time||'--:--')+'</td><td><span class="badge badge-'+bc+'">'+a.status+'</span></td><td>'+v+'</td><td><button class="action-btn"><i data-lucide="more-horizontal" style="width:20px"></i></button></td></tr>';} tb.innerHTML=h; lucide.createIcons();
+    }
+    function formatDate(d){ if(!d)return'-'; var p=String(d).split('-'); var m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']; return p.length===3?p[2]+' '+m[parseInt(p[1])-1]+' '+p[0]:d;}
+    
+    function renderRekap(){
+      var c=document.getElementById('main-content');
+      c.innerHTML=`
+      <div class="page-header" style="margin-bottom:24px;">
+        <h1 style="font-size:24px;font-weight:700;">Rekapitulasi Bulanan</h1>
+        <div class="header-actions" style="margin-top:20px; display:flex; gap:10px;">
+          <button class="btn ${activeType=='siswa'?'btn-primary':'btn-outline'}" onclick="switchType('siswa')">Siswa</button>
+          <button class="btn ${activeType=='guru'?'btn-primary':'btn-outline'}" onclick="switchType('guru')">Guru</button>
+        </div>
+      </div>
+      <div class="card"><div class="card-body" id="rekap-content"><p style="text-align:center;padding:30px;color:var(--text-muted)">Memuat data...</p></div></div>`;
+      MockServer.getMonthlyRecap(new Date().getMonth()+1, new Date().getFullYear(), activeType).then(function(r){ if(r.success){ rekapData=r; showRekapTable(); }});
+    }
+    function showRekapTable(){
+      var rc=document.getElementById('rekap-content'); if(!rekapData||!rekapData.students||rekapData.students.length===0){ rc.innerHTML='<p style="text-align:center;padding:30px;color:var(--text-muted)">Tidak ada data</p>'; return;}
+      var h='<div style="overflow-x:auto"><table class="table rekap-table"><thead><tr><th style="text-align:left;min-width:200px; left:0; z-index:20;">Nama Siswa</th>'; for(var d=1;d<=rekapData.daysInMonth;d++)h+='<th>'+d+'</th>'; h+='<th style="background:#dcfce7">H</th><th style="background:#fffbeb">T</th><th style="background:#faf5ff">S</th><th style="background:#ecfeff">I</th><th style="background:#fef2f2">A</th></tr></thead><tbody>';
+      for(var k=0;k<rekapData.students.length;k++){ var s=rekapData.students[k]; h+='<tr><td style="text-align:left"><div class="student-cell"><div class="avatar '+getColor(k)+'" style="width:28px;height:28px;font-size:10px;margin-right:10px">'+getInit(s.nama)+'</div><div><strong style="font-size:12px;color:var(--text-main)">'+s.nama+'</strong><br><small style="color:var(--text-muted)">'+s.kelas+'</small></div></div></td>'; for(var d=1;d<=rekapData.daysInMonth;d++){ var code=s.days[d]||'-'; var cls=code==='H'?'day-h':code==='T'?'day-t':code==='S'?'day-s':code==='I'?'day-i':code==='A'?'day-a':''; h+='<td class="'+cls+'"><strong>'+code+'</strong></td>';} h+='<td style="font-weight:700;color:var(--success)'+(s.totals.H||0)+'</td><td style="font-weight:700;color:var(--warning)'+(s.totals.T||0)+'</td><td style="font-weight:700;color:var(--purple)'+(s.totals.S||0)+'</td><td style="font-weight:700;color:var(--info)'+(s.totals.I||0)+'</td><td style="font-weight:700;color:var(--danger)'+(s.totals.A||0)+'</td></tr>';} h+='</tbody></table></div>'; rc.innerHTML=h;
+    }
+    function propagateEmail(){ if(confirm('Kirim laporan kehadiran hari ini ke semua Wali Kelas?')){ MockServer.sendDailyReportToWaliKelas(currentFilterDate).then(function(r){ var msg='Total Terkirim: '+r.sent+'\nGagal: '+r.failed; if(r.failed>0){ alert(msg+'\n\nDetail:\n'+r.log.join('\n')); }else{ showToast(msg,'success'); }}); }}
+
+    function renderSiswa(){
+      var c = document.getElementById('main-content');
+      var btnS=activeType=='siswa'?'btn-primary':'btn-outline'; var btnG=activeType=='guru'?'btn-primary':'btn-outline'; var btnK=activeType=='kelas'?'btn-primary':'btn-outline'; 
+      c.innerHTML=`
+      <div class="page-header" style="margin-bottom:24px;">
+        <h1 style="font-size:24px;font-weight:700;">Data Sekolah</h1>
+        <p style="color:var(--text-muted);font-size:14px;">Kelola data Siswa, Guru, dan Kelas SMKN Rakit Kulim.</p>
+        <div class="header-actions" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn ${btnS}" onclick="switchType('siswa')">Data Siswa</button>
+          <button class="btn ${btnG}" onclick="switchType('guru')">Data Guru</button>
+          <button class="btn ${btnK}" onclick="switchType('kelas')">Data Kelas</button>
+          <button class="btn btn-primary" onclick="showAddModal()"><i data-lucide="plus-circle" style="width:16px"></i> Tambah Baru</button>
+          <button class="btn btn-danger" onclick="if(confirm('Reset semua data?')){localStorage.clear();location.reload()}"><i data-lucide="trash-2" style="width:16px"></i> Reset</button>
+        </div>
+      </div>
+      <div class="card"><div class="card-body" style="padding:0"><table class="table"><thead><tr>${activeType=='kelas'?'<th>Nama Kelas</th><th>Wali Kelas</th><th>Email</th><th>Aksi</th>':`<th>${activeType=='guru'?'Guru':'Siswa'}</th><th>${activeType=='guru'?'NIP':'Barcode'}</th><th>${activeType=='guru'?'Jabatan':'Kelas'}</th><th>Email</th><th>Face ID</th><th>Status</th><th>Aksi</th>`}</tr></thead><tbody id="siswa-table"></tbody></table></div></div>`; lucide.createIcons(); renderSiswaTable();
+    }
+    function renderSiswaTable(){
+      var tb=document.getElementById('siswa-table'); if(!tb)return; if(students.length===0){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Belum ada data.</td></tr>'; return;}
+      var h=''; for(var i=0;i<students.length;i++){ var s=students[i]; if(activeType==='kelas'){ h+='<tr><td><strong>'+s.nama+'</strong></td><td>'+s.wali+'</td><td>'+s.email+'</td><td><button class="action-btn" onclick="deleteSiswa(\''+s.nama+'\')" title="Hapus" style="color:var(--danger)"><i data-lucide="trash-2" style="width:18px"></i></button></td></tr>';}else{ var fb=s.faceDescriptor?'<button class="action-btn" style="color:var(--success)"><i data-lucide="face-id" style="width:18px"></i></button>':'<button class="btn btn-outline" style="padding:6px 12px;font-size:11px;height:auto;" onclick="regFace(\''+s.id+'\',\''+s.nama+'\')" >Register</button>'; var stBadge=s.status==='Aktif'?'success':'danger'; var code = s.nip || s.barcode; var sub = s.jabatan || s.kelas; var em = s.email || '-'; h+='<tr><td><div class="student-cell"><div class="avatar '+getColor(i)+'">'+getInit(s.nama)+'</div><span style="font-weight:600;margin-left:12px">'+s.nama+'</span></div></td><td>'+code+'</td><td>'+sub+'</td><td><span style="font-size:12px;color:var(--text-muted)'+em+'</span></td><td>'+fb+'</td><td><span class="badge badge-'+stBadge+'">'+(s.status||'Aktif')+'</span></td><td><button class="action-btn" onclick="deleteSiswa(\''+s.id+'\')" title="Hapus" style="color:var(--text-muted)"><i data-lucide="trash-2" style="width:18px"></i></button></td></tr>';}} tb.innerHTML=h; lucide.createIcons();
+    }
+    function renderPengaturan(){
+      var c = document.getElementById('main-content');
+      c.innerHTML=`
+      <div class="page-header" style="margin-bottom:24px;">
+        <h1 style="font-size:24px;font-weight:700;">Pengaturan Sistem</h1>
+        <p style="color:var(--text-muted);font-size:14px;">Konfigurasi parameter absensi.</p>
+      </div>
+      <div class="card" style="max-width:500px"><div class="card-body">
+        <div class="form-group"><label class="form-label">Jam Batas Terlambat</label><input type="time" class="form-input" id="set-jam" value="07:15"></div>
+        <div class="form-group"><label class="form-label">Ambang Batas Face Match (0-1)</label><input type="number" class="form-input" id="set-th" value="0.5" min="0" max="1" step="0.1"></div>
+        <button class="btn btn-primary" onclick="saveSettings()" style="width:100%"><i data-lucide="save" style="width:16px"></i> Simpan Perubahan</button>
+      </div></div>`; lucide.createIcons();
+    }
+    function showAddModal(){
+      var m = document.getElementById('modal');
+      if(activeType==='kelas'){
+        m.innerHTML=`<div class="modal"><div class="modal-header"><span class="modal-title">Tambah Kelas</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="form-group"><label class="form-label">Nama Kelas</label><input type="text" class="form-input" id="add-kelas-nama" placeholder="Contoh: XII-TKJ-1"></div><div class="form-group"><label class="form-label">Wali Kelas</label><input type="text" class="form-input" id="add-kelas-wali" placeholder="Nama Wali Kelas"></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="add-kelas-email" placeholder="email@sekolah.sch.id"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAdd()">Simpan</button></div></div>`;
+      } else {
+        var lblCode = activeType=='guru'?'NIP/NIPG':'Barcode / NIS';
+        var lblSub = activeType=='guru'?'Jabatan':'Kelas';
+        m.innerHTML=`<div class="modal"><div class="modal-header"><span class="modal-title">Tambah ${(activeType=='guru'?'Guru':'Siswa')}</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="form-group"><label class="form-label">${lblCode}</label><input type="text" class="form-input" id="add-bc" placeholder="Masukan ${lblCode}"></div><div class="form-group"><label class="form-label">Nama Lengkap</label><input type="text" class="form-input" id="add-nama" placeholder="Nama Lengkap"></div><div class="form-group"><label class="form-label">${lblSub}</label><input type="text" class="form-input" id="add-kelas" placeholder="${lblSub}"></div><div class="form-group"><label class="form-label">Email (Opsional)</label><input type="email" class="form-input" id="add-email" placeholder="email@domain.com"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="submitAdd()">Simpan</button></div></div>`;
+      } m.classList.add('active');
+    }
+    function regFace(id, nm){
+      var m = document.getElementById('modal');
+      m.innerHTML=`<div class="modal"><div class="modal-header"><span class="modal-title">Register Wajah - ${nm}</span><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div style="text-align:center;padding:30px;border:2px dashed var(--border);border-radius:16px;margin-bottom:15px;cursor:pointer;transition:all 0.2s;" onclick="document.getElementById('foto-input').click()" onmouseover="this.style.borderColor=var(--primary);this.style.background=#eff6ff" onmouseout="this.style.borderColor=var(--border);this.style.background=transparent"><i data-lucide="upload-cloud" style="width:48px;height:48px;color:var(--text-muted);margin-bottom:10px"></i><p style="color:var(--text-muted);font-size:13px">Klik untuk upload foto wajah</p><input type="file" id="foto-input" accept="image/*" style="display:none" onchange="previewFoto(this)"></div><div id="preview-box" style="display:none;margin-bottom:15px"><img id="preview-img" style="width:100%;max-height:300px;object-fit:contain;border-radius:12px;border:1px solid var(--border)"></div><div class="face-status loading" id="face-status" style="display:none">Memproses wajah...</div><button class="btn btn-primary" style="width:100%" id="save-btn" disabled onclick="saveFace('${id}')"><i data-lucide="save" style="width:16px"></i> Simpan Data Wajah</button></div></div>`; m.classList.add('active'); lucide.createIcons(); loadFaceApi();
+    }
+
+    // --- STUDENT LOGIC ---
+
+    var currentStudent = null;
+    var videoStream = null;
+    var locationData = {lat:'', lng:'', alamat:''};
+    var faceLoaded = false;
+
+    function showOptions(){
+      stopCam();
+      var c = document.getElementById('student-content');
+      c.innerHTML=`
+      <button class="opt-btn" onclick="startScanner()">
+        <div class="opt-icon blue"><i data-lucide="qr-code"></i></div>
+        <div class="opt-text"><h3>Scan Barcode</h3><p>Pindai kartu pelajar / NIP</p></div>
+      </button>
+      <button class="opt-btn" onclick="showManual()">
+        <div class="opt-icon green"><i data-lucide="keyboard"></i></div>
+        <div class="opt-text"><h3>Input Manual</h3><p>Ketik barcode / NIS</p></div>
+      </button>
+      <button class="opt-btn" onclick="showSick()">
+        <div class="opt-icon purple"><i data-lucide="clipboard-plus"></i></div>
+        <div class="opt-text"><h3>Izin / Sakit</h3><p>Form tidak hadir</p></div>
+      </button>`; 
+      lucide.createIcons();
+    }
+    function showManual(){
+      var c = document.getElementById('student-content');
+      c.innerHTML=`
+      <div class="form-group"><label class="form-label">Barcode / NIS / NIP</label><input type="text" class="form-input" id="barcode" placeholder="Masukkan kode anda..."></div>
+      <button class="btn btn-primary" style="width:100%" onclick="findStudent()">Cari Data</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showOptions()">Kembali</button>
+      <button class="btn" style="width:100%;margin-top:10px; color:var(--text-muted)" onclick="location.reload()">Keluar</button>`;
+    }
+    function startScanner(){
+      var c = document.getElementById('student-content');
+      c.innerHTML=`<div id="scanner" style="width:100%;height:260px;border-radius:16px;overflow:hidden;margin-bottom:15px; border: 2px solid var(--border);"></div><button class="btn btn-outline" style="width:100%" onclick="stopScan();showOptions()">Batal Scan</button>`;
+      try{ window.scanner=new Html5Qrcode('scanner'); window.scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:100}},function(t){ stopScan(); findByCode(t); },function(){});} catch(e){ showToast('Kamera Error','error'); showOptions(); }
+    }
+    function stopScan(){ if(window.scanner){ try{window.scanner.stop();}catch(e){}}}
+    function findStudent(){ var bc=document.getElementById('barcode').value.trim(); if(!bc){ showToast('Masukkan barcode','error'); return;} findByCode(bc); }
+    function findByCode(bc){
+      MockServer.getPersonByBarcode(bc).then(function(r){ if(r.success){ currentStudent=r.student; showSelfie(); }else{ showToast('Data tidak ditemukan','error'); showOptions(); }});
+    }
+    function showSelfie(){
+      locationData={lat:'',lng:'',alamat:''}; getLoc();
+      var c = document.getElementById('student-content');
+      c.innerHTML=`
+      <div style="text-align:center;margin-bottom:20px">
+        <div class="avatar blue" style="width:64px;height:64px;font-size:24px;margin:0 auto 12px; border:3px solid white; box-shadow:var(--shadow-md)">${getInit(currentStudent.nama)}</div>
+        <h3 style="font-size:18px;font-weight:700;color:var(--text-main)">${currentStudent.nama}</h3>
+        <p style="color:var(--text-muted);font-weight:500">${currentStudent.kelas}</p>
+      </div>
+      <div class="camera-box"><video id="selfie-video" class="camera-video" autoplay playsinline></video></div>
+      <div class="face-status loading" id="fs"><i data-lucide="loader-2" class="animate-spin" style="width:16px"></i> Memuat Kamera & AI...</div>
+      <div class="loc-info" id="li"><i data-lucide="map-pin" style="width:16px;color:var(--text-muted)"></i>Mendeteksi lokasi...</div>
+      <button class="btn btn-success" style="width:100%; height: 50px; font-size: 16px;" id="sbtn" disabled onclick="captureSubmit()"><i data-lucide="camera" style="width:18px"></i> Ambil Foto & Absen</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:12px" onclick="stopCam();showOptions()">Batal</button>`; 
+      lucide.createIcons(); startSelfie();
+    }
+    function startSelfie(){ navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480}}).then(function(s){ videoStream=s; document.getElementById('selfie-video').srcObject=s; loadFace(); }).catch(function(){ document.getElementById('fs').className='face-status error'; document.getElementById('fs').innerHTML='Gagal akses kamera'; });}
+    function stopCam(){ if(videoStream){ videoStream.getTracks().forEach(function(t){t.stop();}); videoStream=null;}}
+    function loadFace(){
+      if(faceLoaded){ document.getElementById('fs').className='face-status success'; document.getElementById('fs').innerHTML='<i data-lucide="check-circle" style="width:16px"></i> Siap untuk Absen'; document.getElementById('sbtn').disabled=false; return;}
+      Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')]).then(function(){ faceLoaded=true; document.getElementById('fs').className='face-status success'; document.getElementById('fs').innerHTML='<i data-lucide="check-circle" style="width:16px"></i> Siap untuk Absen'; document.getElementById('sbtn').disabled=false; }).catch(function(){ document.getElementById('fs').className='face-status error'; document.getElementById('fs').innerHTML='Gagal memuat model AI'; });
+    }
+    function getLoc(){ if(navigator.geolocation){ navigator.geolocation.getCurrentPosition(function(p){ locationData.lat=p.coords.latitude; locationData.lng=p.coords.longitude; document.getElementById('li').innerHTML='<i data-lucide="map-pin" style="width:16px;color:var(--success)"></i><span style="color:var(--success);font-weight:600">Lokasi Terkunci</span>'; lucide.createIcons(); }, function(){ document.getElementById('li').innerHTML='<i data-lucide="map-pin-off" style="width:16px;color:var(--danger)"></i><span style="color:var(--danger)">Lokasi Off</span>'; lucide.createIcons(); }); }}
+    function captureSubmit(){
+      var v=document.getElementById('selfie-video'); var cv=document.createElement('canvas'); cv.width=v.videoWidth; cv.height=v.videoHeight; cv.getContext('2d').drawImage(v,0,0);
+      document.getElementById('fs').textContent='Menganalisis wajah...'; document.getElementById('sbtn').disabled=true;
+      faceapi.detectSingleFace(cv,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor().then(function(d){
+        if(!d){ document.getElementById('fs').className='face-status error'; document.getElementById('fs').textContent='Wajah tidak terdeteksi'; document.getElementById('sbtn').disabled=false; return;}
+        var desc=d.descriptor; var fm=0; if(currentStudent.faceDescriptor){ var dist=faceapi.euclideanDistance(desc,currentStudent.faceDescriptor); fm=Math.max(0,1-dist);}
+        var photo=cv.toDataURL('image/jpeg',0.5); stopCam();
+        MockServer.recordAttendance({studentId:currentStudent.id,nama:currentStudent.nama,kelas:currentStudent.kelas,fotoAbsen:photo,faceMatch:fm,latitude:locationData.lat,longitude:locationData.lng,alamat:locationData.alamat}).then(function(r){ if(r.success){ showSuccess(r.status,r.time,fm); }else{ showToast('Gagal','error'); showOptions(); }});
+      });
+    }
+    function showSick(){
+      var c = document.getElementById('student-content');
+      c.innerHTML=`
+      <div class="form-group"><label class="form-label">Barcode / NIS</label><input type="text" class="form-input" id="sbc"></div>
+      <div class="form-group"><label class="form-label">Jenis Izin</label><select class="form-select" id="sst"><option value="Sakit">Sakit</option><option value="Izin">Izin</option></select></div>
+      <div class="form-group"><label class="form-label">Keterangan</label><textarea class="form-input" id="skt" rows="3" placeholder="Alasan tidak masuk..."></textarea></div>
+      <button class="btn btn-primary" style="width:100%" onclick="submitSick()">Kirim Pengajuan</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="showOptions()">Kembali</button>`;
+    }
+    function submitSick(){
+      var bc=document.getElementById('sbc').value.trim(); var st=document.getElementById('sst').value; var kt=document.getElementById('skt').value; if(!bc){ showToast('Isi barcode','error'); return;}
+      MockServer.getPersonByBarcode(bc).then(function(r){ if(r.success){ currentStudent=r.student; MockServer.submitSickLeave({studentId:currentStudent.id,nama:currentStudent.nama,kelas:currentStudent.kelas,status:st,keterangan:kt}).then(function(r2){ if(r2.success) showSuccess(r2.status,r2.time,0); }); }else showToast('Tidak ditemukan','error'); });
+    }
+    function showSuccess(st, tm, fm){
+      var c = document.getElementById('student-content'); 
+      var col=st==='Terlambat'?'var(--warning)':'var(--success)';
+      var icon = st==='Terlambat'?'clock-warning':'check-circle';
+      c.innerHTML=`
+      <div class="success-screen">
+        <div class="success-icon" style="background:${col}">
+          <i data-lucide="${icon}" style="width:40px;height:40px"></i>
+        </div>
+        <h2 style="color:${col};margin-bottom:5px">Absensi Berhasil!</h2>
+        <strong style="font-size:18px;color:var(--text-main)">${currentStudent.nama}</strong>
+        <p style="color:var(--text-muted)">${currentStudent.kelas}</p>
+        
+        <div style="background:#f8fafc;padding:20px;border-radius:12px;margin:25px 0;text-align:left;border:1px solid var(--border);">
+           <div style="margin-bottom:10px; display:flex; justify-content:space-between;">
+             <span style="color:var(--text-muted)">Status</span>
+             <strong style="color:var(--text-main)">${st}</strong>
+           </div>
+           <div style="margin-bottom:10px; display:flex; justify-content:space-between;">
+             <span style="color:var(--text-muted)">Waktu</span>
+             <strong style="color:var(--text-main)">${tm}</strong>
+           </div>
+           <div style="margin-bottom:0; display:flex; justify-content:space-between;">
+             <span style="color:var(--text-muted)">Lokasi</span>
+             <span style="font-size:12px;color:${locationData.lat ? 'var(--success)' : 'var(--danger)'}">${locationData.lat ? 'Tersimpan' : 'Gagal'}</span>
+           </div>
+        </div>
+
+        <button class="btn btn-primary" style="width:100%" onclick="showOptions()">Kembali ke Menu</button>
+      </div>`; 
+      lucide.createIcons();
+    }
+
+    // --- SHARED HELPERS ---
+    
+    var uploadedImg = null;
+    function previewFoto(input){
+      if(input.files&&input.files[0]){ var reader=new FileReader(); reader.onload=function(e){ uploadedImg=new Image(); uploadedImg.onload=function(){ document.getElementById('preview-box').style.display='block'; document.getElementById('preview-img').src=e.target.result; document.getElementById('save-btn').disabled=false; }; uploadedImg.src=e.target.result; }; reader.readAsDataURL(input.files[0]); }
+    }
+    function loadFaceApi(){ Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')]).then(function(){ console.log('Face API loaded'); }).catch(function(e){ console.log('Face API error',e); });}
+    function saveFace(id){
+      if(!uploadedImg){ showToast('Pilih foto dulu','error'); return;}
+      document.getElementById('face-status').style.display='flex'; document.getElementById('face-status').className='face-status loading'; document.getElementById('face-status').textContent='Mendeteksi wajah...'; document.getElementById('save-btn').disabled=true;
+      var cv=document.createElement('canvas'); cv.width=uploadedImg.width; cv.height=uploadedImg.height; cv.getContext('2d').drawImage(uploadedImg,0,0);
+      faceapi.detectSingleFace(cv,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor().then(function(d){
+        if(d){ var desc=Array.from(d.descriptor); var small=document.createElement('canvas'); small.width=200; small.height=200; small.getContext('2d').drawImage(uploadedImg,0,0,200,200); var url=small.toDataURL('image/jpeg',0.5); document.getElementById('face-status').textContent='Menyimpan...'; MockServer.registerFace({studentId:id,faceDescriptor:desc,fotoURL:url}).then(function(r){ closeModal(); if(r.success){ showToast('Wajah terdaftar!','success'); loadData(); }else{ showToast('Gagal: '+(r.error||''),'error'); }});}else{ document.getElementById('face-status').className='face-status error'; document.getElementById('face-status').textContent='Wajah tidak terdeteksi'; document.getElementById('save-btn').disabled=false;}
+      }).catch(function(e){ document.getElementById('face-status').className='face-status error'; document.getElementById('face-status').textContent='Error: '+e.message; document.getElementById('save-btn').disabled=false; });
+    }
+    function closeModal(){ document.getElementById('modal').classList.remove('active'); uploadedImg=null;}
+    function submitAdd(){
+      if(activeType==='kelas'){ var n=document.getElementById('add-kelas-nama').value; var w=document.getElementById('add-kelas-wali').value; var e=document.getElementById('add-kelas-email').value; if(!n||!w){ showToast('Lengkapi field','error'); return;} MockServer.addClass({nama:n,wali:w,email:e}).then(function(r){ if(r.success){ showToast('Kelas ditambahkan','success'); closeModal(); loadData(); }}); return;}
+      var bc=document.getElementById('add-bc').value; var nm=document.getElementById('add-nama').value; var kl=document.getElementById('add-kelas').value; var em=document.getElementById('add-email').value; if(!bc||!nm||!kl){ showToast('Lengkapi semua field','error'); return;}
+      if(activeType==='guru'){ MockServer.addTeacher({nip:bc,nama:nm,jabatan:kl,email:em}).then(function(r){ if(r.success){ showToast('Guru ditambahkan','success'); closeModal(); loadData(); }});}else{ MockServer.addStudent({barcode:bc,nama:nm,kelas:kl,email:em}).then(function(r){ if(r.success){ showToast('Siswa ditambahkan','success'); closeModal(); loadData(); }});}
+    }
+    function deleteSiswa(id){
+      if(confirm('Yakin ingin menghapus data ini?')){
+        if(activeType==='kelas'){ MockServer.deleteClass(id).then(function(r){ if(r.success){ showToast('Kelas dihapus','success'); loadData(); }}); return;}
+        if(activeType==='guru'){ MockServer.deleteTeacher(id).then(function(r){ if(r.success){ showToast('Guru dihapus','success'); loadData(); }});}else{ MockServer.deleteStudent(id).then(function(r){ if(r.success){ showToast('Siswa dihapus','success'); loadData(); }});}
+      }
+    }
+    function saveSettings(){ var j=document.getElementById('set-jam').value; var t=document.getElementById('set-th').value; MockServer.updateSettings({jamTerlambat:j,faceMatchThreshold:t}).then(function(r){ if(r.success)showToast('Pengaturan disimpan','success'); });}
+    function exportPDF(){ var doc=new jspdf.jsPDF(); doc.text('Laporan Kehadiran SMKN RAKIT KULIM',20,20); doc.text('Tanggal: '+currentFilterDate,20,30); var y=40; for(var i=0;i<attendance.length;i++){ var a=attendance[i]; doc.text((i+1)+'. '+a.nama+' ('+a.kelas+') - '+a.time+' - '+a.status,20,y); y+=10; if(y>270){doc.addPage();y=20;} } doc.save('Laporan_SMKN_RakitKulim.pdf'); showToast('PDF diunduh','success');}
+    function exportExcel(){ var wb=XLSX.utils.book_new(); var data=[['No','Nama','Kelas','Tanggal','Waktu','Status','Verifikasi']]; for(var i=0;i<attendance.length;i++){ var a=attendance[i]; data.push([i+1,a.nama,a.kelas,a.date||'-',a.time,a.status,a.faceMatch>0.5?'Valid':'Invalid']);} var ws=XLSX.utils.aoa_to_sheet(data); XLSX.utils.book_append_sheet(wb,ws,'Kehadiran'); XLSX.writeFile(wb,'Laporan_SMKN_RakitKulim.xlsx'); showToast('Excel diunduh','success');}
+    function showToast(m,t){ var tc=document.getElementById('toasts'); var d=document.createElement('div'); d.className='toast '+(t==='error'?'error':''); 
+    var icon = t==='error' ? 'alert-triangle' : 'check-circle';
+    d.innerHTML = `<i data-lucide="${icon}"></i> <span>${m}</span>`;
+    tc.appendChild(d); lucide.createIcons(); setTimeout(function(){d.remove();},3000);}
+    function getInit(n){ if(!n)return'?'; var p=n.split(' '); return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
+
+  </script>
+</body>
+</html>
